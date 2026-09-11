@@ -12,11 +12,10 @@ interface Props {
 }
 
 const PHRASES: { at: [number, number]; text: string }[] = [
-  { at: [0.02, 0.16], text: 'O tempo não espera por ninguém.' },
-  { at: [0.18, 0.34], text: 'Ele muda de forma — do bolso ao pulso…' },
-  { at: [0.38, 0.54], text: '…da parede à areia que escorre.' },
-  { at: [0.58, 0.78], text: 'Zync transforma minutos em foco.' },
-  { at: [0.82, 0.98], text: 'Seu Pomodoro, do seu jeito.' },
+  { at: [0.02, 0.18], text: 'O tempo não espera por ninguém.' },
+  { at: [0.22, 0.44], text: 'Ele muda de forma — do bolso ao pulso…' },
+  { at: [0.48, 0.7], text: '…e à parede, sempre marcando seu foco.' },
+  { at: [0.74, 0.99], text: 'Zync: Pomodoro do seu jeito.' },
 ];
 
 function phraseOpacity([start, end]: [number, number], p: number) {

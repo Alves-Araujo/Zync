@@ -163,16 +163,14 @@ export function sampleKnobs(f: number): Knobs {
 }
 
 /**
- * Maps intro scroll progress (0..1) to the morph position (0..3). Each shape
- * gets a visible hold; the final hourglass is reached by ~0.82 and held so it
- * has real screen time before the overlay dissolves.
+ * Maps intro scroll progress (0..1) to the morph position. The intro only walks
+ * pocket → wrist → wall (0 → 2); the hourglass is editor-only. The wall form is
+ * held from ~0.78 to 1 so it has screen time before the overlay dissolves.
  */
 export function progressToF(p: number): number {
-  // transition windows between the four shapes
   const windows: [number, number][] = [
-    [0.14, 0.3], // pocket -> wrist
-    [0.36, 0.52], // wrist -> wall
-    [0.58, 0.74], // wall -> hourglass
+    [0.16, 0.42], // pocket -> wrist
+    [0.5, 0.78], // wrist -> wall
   ];
   let f = 0;
   for (let i = 0; i < windows.length; i++) {

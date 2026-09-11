@@ -26,7 +26,6 @@ const BRASS = new THREE.Color('#c69a5a');
 
 const TAU = Math.PI * 2;
 const damp = THREE.MathUtils.damp;
-const lerp = THREE.MathUtils.lerp;
 const clamp01 = (v: number) => THREE.MathUtils.clamp(v, 0, 1);
 const smoothstep = (e0: number, e1: number, x: number) => {
   const t = clamp01((x - e0) / (e1 - e0));
@@ -35,17 +34,29 @@ const smoothstep = (e0: number, e1: number, x: number) => {
 
 // -- shared profiles -----------------------------------------------------------
 
-const CASE_PROFILE: [number, number][] = [
-  [0.8, 0.3],
-  [0.86, 0.34],
-  [0.97, 0.31],
-  [1.04, 0.2],
-  [1.06, 0.08],
-  [1.05, -0.04],
-  [1.0, -0.18],
-  [0.84, -0.29],
-  [0.5, -0.35],
-  [0.12, -0.34],
+// polished bezel (the ring you look through), lots of points for a smooth curve
+const BEZEL_PROFILE: [number, number][] = [
+  [0.78, 0.3],
+  [0.8, 0.33],
+  [0.84, 0.355],
+  [0.9, 0.36],
+  [0.96, 0.345],
+  [1.01, 0.305],
+  [1.05, 0.235],
+  [1.075, 0.14],
+  [1.078, 0.04],
+  [1.05, -0.02],
+];
+// brushed mid-case + domed back
+const BODY_PROFILE: [number, number][] = [
+  [1.05, 0.02],
+  [1.062, -0.03],
+  [1.055, -0.12],
+  [1.02, -0.2],
+  [0.92, -0.27],
+  [0.72, -0.33],
+  [0.44, -0.37],
+  [0.12, -0.365],
 ];
 
 // hourglass glass silhouette: (radius, y) bottom → top
@@ -92,7 +103,8 @@ export default function Timepiece(props: Props) {
 
   const root = useRef<THREE.Group>(null);
   const tilt = useRef<THREE.Group>(null);
-  const caseRef = useRef<THREE.Mesh>(null);
+  const bezelRef = useRef<THREE.Mesh>(null);
+  const bodyRef = useRef<THREE.Mesh>(null);
   const flutesRef = useRef<THREE.Group>(null);
   const faceGroup = useRef<THREE.Group>(null);
   const dialPocket = useRef<THREE.Mesh>(null);
@@ -118,8 +130,8 @@ export default function Timepiece(props: Props) {
   const sandPeakRef = useRef<THREE.Mesh>(null);
   const streamRef = useRef<THREE.Mesh>(null);
 
-  const metalMats = useRef<THREE.MeshStandardMaterial[]>([]);
-  const pushMetal = (m: THREE.MeshStandardMaterial | null) => {
+  const metalMats = useRef<THREE.MeshPhysicalMaterial[]>([]);
+  const pushMetal = (m: THREE.MeshPhysicalMaterial | null) => {
     if (m && !metalMats.current.includes(m)) metalMats.current.push(m);
   };
 
@@ -134,10 +146,57 @@ export default function Timepiece(props: Props) {
     };
   }, [face, ink, accent]);
 
-  const caseGeo = useMemo(
-    () => new THREE.LatheGeometry(CASE_PROFILE.map(([r, y]) => new THREE.Vector2(r, y)), 96),
+  const bezelGeo = useMemo(
+    () => new THREE.LatheGeometry(BEZEL_PROFILE.map(([r, y]) => new THREE.Vector2(r, y)), 128),
     [],
   );
+  const bodyGeo = useMemo(
+    () => new THREE.LatheGeometry(BODY_PROFILE.map(([r, y]) => new THREE.Vector2(r, y)), 128),
+    [],
+  );
+
+  // procedural micro-detail maps
+  const sunburstNormal = useMemo(() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 512;
+    const g = c.getContext('2d')!;
+    g.fillStyle = 'rgb(128,128,255)';
+    g.fillRect(0, 0, 512, 512);
+    g.translate(256, 256);
+    for (let i = 0; i < 720; i++) {
+      g.rotate((Math.PI * 2) / 720);
+      g.strokeStyle = i % 2 ? 'rgb(150,128,255)' : 'rgb(108,128,255)';
+      g.lineWidth = 1;
+      g.beginPath();
+      g.moveTo(12, 0);
+      g.lineTo(250, 0);
+      g.stroke();
+    }
+    const t = new THREE.CanvasTexture(c);
+    return t;
+  }, []);
+  const grainNormal = useMemo(() => {
+    const c = document.createElement('canvas');
+    c.width = c.height = 128;
+    const g = c.getContext('2d')!;
+    const img = g.createImageData(128, 128);
+    let s = 1337;
+    const rnd = () => {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      return s / 4294967296;
+    };
+    for (let i = 0; i < img.data.length; i += 4) {
+      img.data[i] = 128 + (rnd() - 0.5) * 90;
+      img.data[i + 1] = 128 + (rnd() - 0.5) * 90;
+      img.data[i + 2] = 255;
+      img.data[i + 3] = 255;
+    }
+    g.putImageData(img, 0, 0);
+    const t = new THREE.CanvasTexture(c);
+    t.wrapS = t.wrapT = THREE.RepeatWrapping;
+    t.repeat.set(4, 4);
+    return t;
+  }, []);
   const hgGeo = useMemo(
     () => new THREE.LatheGeometry(HG_PROFILE.map(([r, y]) => new THREE.Vector2(r, y)), 96),
     [],
@@ -154,20 +213,21 @@ export default function Timepiece(props: Props) {
   const sandMatInst = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        color: new THREE.Color('#d4bd8e'),
+        color: new THREE.Color('#ddc79a'),
         roughness: 1,
         metalness: 0,
-        emissive: new THREE.Color('#4a3a24'),
-        emissiveIntensity: 0.12,
+        emissive: new THREE.Color('#6b5636'),
+        emissiveIntensity: 0.42,
+        normalMap: grainNormal,
+        normalScale: new THREE.Vector2(0.12, 0.12),
       }),
-    [],
+    [grainNormal],
   );
 
   const fRef = useRef(props.targetF);
   const deadlineRef = useRef(0);
   const lastRemain = useRef(-1);
   const tmp = useRef(new THREE.Color());
-  const tmp2 = useRef(new THREE.Color());
 
   useFrame((state, dt) => {
     const d = Math.min(dt, 0.05);
@@ -214,12 +274,14 @@ export default function Timepiece(props: Props) {
     }
 
     // metal colour
-    const mc = tmp.current.copy(GOLD).lerp(STEEL, k.metal).lerp(accentColor, 0.04);
+    const mc = tmp.current.copy(GOLD).lerp(STEEL, k.metal).lerp(accentColor, 0.05);
     for (const m of metalMats.current) {
       m.color.copy(mc);
-      m.roughness = k.roughness;
-      m.metalness = lerp(0.35, 0.6, k.metal);
-      m.envMapIntensity = 1.4;
+      m.metalness = 0.9;
+      m.envMapIntensity = 2.4;
+      // per-material roughness offset stashed on userData
+      const ro = (m.userData.ro as number) ?? 0;
+      m.roughness = clamp01(k.roughness + ro);
     }
 
     const watch = k.dialWatch;
@@ -228,14 +290,17 @@ export default function Timepiece(props: Props) {
     const dialR = outer * 0.78;
     const faceZ = 0.2 * outer;
 
-    // case
-    if (caseRef.current) {
-      caseRef.current.scale.set(outer * bi, depth * 2.2 * bi, outer * bi);
-      caseRef.current.visible = watch > 0.02 && bi > 0.01;
-      const cm = caseRef.current.material as THREE.MeshStandardMaterial;
+    // case (polished bezel + brushed body)
+    const caseS = (m: THREE.Mesh | null) => {
+      if (!m) return;
+      m.scale.set(outer * bi, depth * 2.4 * bi, outer * bi);
+      m.visible = watch > 0.02 && bi > 0.01;
+      const cm = m.material as THREE.MeshStandardMaterial;
       cm.opacity = watch;
       cm.transparent = watch < 0.99;
-    }
+    };
+    caseS(bezelRef.current);
+    caseS(bodyRef.current);
     if (flutesRef.current) {
       flutesRef.current.visible = k.fluted > 0.4 && bi > 0.4;
       flutesRef.current.scale.set(outer, outer, outer);
@@ -278,16 +343,16 @@ export default function Timepiece(props: Props) {
     if (markersRef.current) {
       markersRef.current.scale.setScalar(dialR * mi);
       markersRef.current.visible = watch > 0.05 && mi > 0.02 && bold > 0.28;
-      const lc = tmp2.current.copy(STEEL).lerp(LUME, k.handLume);
       markersRef.current.children.forEach((c, idx) => {
         const isTwelve = idx === 0;
         const s = 0.6 + bold * 0.6;
         c.scale.set(s * 0.9, s * (isTwelve ? 1.5 : 1.05), 0.6 + bold * 0.6);
-        const mm = ((c as THREE.Group).children[0] as THREE.Mesh)
-          .material as THREE.MeshStandardMaterial;
-        mm.color.copy(lc);
-        mm.emissive.copy(LUME);
-        mm.emissiveIntensity = k.handLume * bold * 0.5;
+        const lume = ((c as THREE.Group).children[1] as THREE.Mesh | undefined)
+          ?.material as THREE.MeshStandardMaterial | undefined;
+        if (lume) {
+          lume.emissiveIntensity = 0.06 + k.handLume * bold * 0.6;
+          (((c as THREE.Group).children[1] as THREE.Mesh).visible = k.handLume * bold > 0.15);
+        }
       });
     }
     if (ticksRef.current) {
@@ -390,8 +455,22 @@ export default function Timepiece(props: Props) {
     }
   });
 
-  const Metal = (extra?: Partial<THREE.MeshStandardMaterialParameters>) => (
-    <meshStandardMaterial ref={pushMetal} color="#c7ccd4" metalness={0.5} roughness={0.28} envMapIntensity={1.4} {...extra} />
+  const Metal = ({
+    ro = 0,
+    polished = false,
+    ...extra
+  }: { ro?: number; polished?: boolean } & Partial<THREE.MeshPhysicalMaterialParameters> = {}) => (
+    <meshPhysicalMaterial
+      ref={pushMetal}
+      color="#c7ccd4"
+      metalness={0.9}
+      roughness={polished ? 0.12 : 0.3}
+      clearcoat={polished ? 0.9 : 0.35}
+      clearcoatRoughness={polished ? 0.08 : 0.35}
+      envMapIntensity={2.4}
+      userData={{ ro: polished ? -0.12 : ro }}
+      {...extra}
+    />
   );
 
   const markerAngles = Array.from({ length: 12 }, (_, i) => (i / 12) * TAU);
@@ -399,9 +478,12 @@ export default function Timepiece(props: Props) {
   return (
     <group ref={root} dispose={null}>
       <group ref={tilt}>
-        {/* -------- case -------- */}
-        <mesh ref={caseRef} geometry={caseGeo} rotation={[-Math.PI / 2, 0, 0]}>
-          {Metal()}
+        {/* -------- case: polished bezel + brushed body -------- */}
+        <mesh ref={bezelRef} geometry={bezelGeo} rotation={[-Math.PI / 2, 0, 0]} castShadow>
+          {Metal({ polished: true })}
+        </mesh>
+        <mesh ref={bodyRef} geometry={bodyGeo} rotation={[-Math.PI / 2, 0, 0]} castShadow receiveShadow>
+          {Metal({ ro: 0.14 })}
         </mesh>
         <group ref={flutesRef}>
           {Array.from({ length: 72 }).map((_, i) => {
@@ -417,17 +499,44 @@ export default function Timepiece(props: Props) {
 
         {/* -------- face -------- */}
         <group ref={faceGroup}>
-          <mesh ref={dialPocket}>
-            <circleGeometry args={[1, 96]} />
-            <meshStandardMaterial map={tex.pocket} transparent roughness={0.62} metalness={0.05} />
+          <mesh ref={dialPocket} receiveShadow>
+            <circleGeometry args={[1, 128]} />
+            <meshPhysicalMaterial
+              map={tex.pocket}
+              normalMap={sunburstNormal}
+              normalScale={[0.09, 0.09]}
+              transparent
+              roughness={0.5}
+              metalness={0.12}
+              clearcoat={0.6}
+              clearcoatRoughness={0.25}
+            />
           </mesh>
-          <mesh ref={dialWrist} position={[0, 0, 0.002]}>
-            <circleGeometry args={[1, 96]} />
-            <meshStandardMaterial map={tex.wrist} transparent roughness={0.55} metalness={0.05} />
+          <mesh ref={dialWrist} position={[0, 0, 0.002]} receiveShadow>
+            <circleGeometry args={[1, 128]} />
+            <meshPhysicalMaterial
+              map={tex.wrist}
+              normalMap={sunburstNormal}
+              normalScale={[0.09, 0.09]}
+              transparent
+              roughness={0.46}
+              metalness={0.12}
+              clearcoat={0.6}
+              clearcoatRoughness={0.25}
+            />
           </mesh>
-          <mesh ref={dialWall} position={[0, 0, 0.004]}>
-            <circleGeometry args={[1, 96]} />
-            <meshStandardMaterial map={tex.wall} transparent roughness={0.5} metalness={0.05} />
+          <mesh ref={dialWall} position={[0, 0, 0.004]} receiveShadow>
+            <circleGeometry args={[1, 128]} />
+            <meshPhysicalMaterial
+              map={tex.wall}
+              normalMap={sunburstNormal}
+              normalScale={[0.07, 0.07]}
+              transparent
+              roughness={0.42}
+              metalness={0.12}
+              clearcoat={0.6}
+              clearcoatRoughness={0.25}
+            />
           </mesh>
 
           {/* recessed chapter ring */}
@@ -442,17 +551,27 @@ export default function Timepiece(props: Props) {
             />
           </mesh>
 
-          {/* applied hour markers */}
+          {/* applied hour markers: polished metal frame + lume inset */}
           <group ref={markersRef} position={[0, 0, 0.02]}>
             {markerAngles.map((a, i) => (
               <group
                 key={i}
-                position={[Math.sin(a) * 0.82, Math.cos(a) * 0.82, 0]}
+                position={[Math.sin(a) * 0.8, Math.cos(a) * 0.8, 0]}
                 rotation={[0, 0, -a]}
               >
-                <mesh position={[0, 0, 0.03]}>
-                  <boxGeometry args={[0.05, 0.14, 0.05]} />
-                  <meshStandardMaterial color="#c7ccd4" metalness={0.5} roughness={0.3} />
+                <mesh position={[0, 0, 0.028]} castShadow>
+                  <boxGeometry args={[0.06, 0.15, 0.055]} />
+                  <meshPhysicalMaterial
+                    color="#e6e9ee"
+                    metalness={0.95}
+                    roughness={0.12}
+                    clearcoat={1}
+                    envMapIntensity={2.6}
+                  />
+                </mesh>
+                <mesh position={[0, 0, 0.06]}>
+                  <boxGeometry args={[0.04, 0.11, 0.02]} />
+                  <meshStandardMaterial color="#dff0e4" emissive="#bfe8cf" emissiveIntensity={0.1} roughness={0.9} />
                 </mesh>
               </group>
             ))}
@@ -476,16 +595,16 @@ export default function Timepiece(props: Props) {
             })}
           </group>
 
-          {/* hands */}
+          {/* hands — polished blued steel */}
           <group ref={handsRef} position={[0, 0, 0.05]}>
             <group ref={hourRef}>
-              <mesh geometry={handGeo.hour}>
-                <meshStandardMaterial color="#1c1c24" metalness={0.6} roughness={0.3} />
+              <mesh geometry={handGeo.hour} castShadow>
+                <meshPhysicalMaterial color="#1c1c24" metalness={0.85} roughness={0.22} clearcoat={0.8} clearcoatRoughness={0.15} envMapIntensity={2} />
               </mesh>
             </group>
             <group ref={minRef}>
-              <mesh geometry={handGeo.minute}>
-                <meshStandardMaterial color="#1c1c24" metalness={0.6} roughness={0.3} />
+              <mesh geometry={handGeo.minute} castShadow>
+                <meshPhysicalMaterial color="#1c1c24" metalness={0.85} roughness={0.22} clearcoat={0.8} clearcoatRoughness={0.15} envMapIntensity={2} />
               </mesh>
             </group>
             <group ref={secRef} position={[0, 0, 0.02]}>
@@ -508,45 +627,53 @@ export default function Timepiece(props: Props) {
             <meshStandardMaterial color="#eceef2" metalness={0.55} roughness={0.25} />
           </mesh>
 
-          {/* crystal */}
+          {/* domed sapphire crystal with AR tint */}
           <mesh ref={glassRef} position={[0, 0, 0.02]}>
-            <sphereGeometry args={[1, 48, 24, 0, TAU, 0, Math.PI * 0.5]} />
+            <sphereGeometry args={[1, 64, 32, 0, TAU, 0, Math.PI * 0.5]} />
             <meshPhysicalMaterial
-              transmission={0.62}
-              thickness={0.6}
-              roughness={0.05}
-              ior={1.5}
+              transmission={0.45}
+              thickness={0.3}
+              roughness={0.02}
+              ior={1.77}
               clearcoat={1}
+              clearcoatRoughness={0.02}
               transparent
-              opacity={0.35}
-              color="#eef3f7"
+              opacity={0.22}
+              color="#ffffff"
+              attenuationColor="#cfe0ff"
+              attenuationDistance={3}
+              envMapIntensity={2}
               depthWrite={false}
             />
           </mesh>
         </group>
 
-        {/* -------- crown -------- */}
+        {/* -------- crown: collar + knurled barrel + domed cap -------- */}
         <group ref={crownRef}>
-          <mesh rotation={[0, 0, Math.PI / 2]} position={[0.04, 0, 0]}>
-            <cylinderGeometry args={[0.09, 0.09, 0.14, 24]} />
-            {Metal({ roughness: 0.34 })}
+          <mesh rotation={[0, 0, Math.PI / 2]} position={[0.015, 0, 0]}>
+            <cylinderGeometry args={[0.055, 0.055, 0.05, 24]} />
+            {Metal({ polished: true })}
           </mesh>
-          {Array.from({ length: 14 }).map((_, i) => {
-            const a = (i / 14) * TAU;
+          <mesh rotation={[0, 0, Math.PI / 2]} position={[0.11, 0, 0]}>
+            <cylinderGeometry args={[0.088, 0.088, 0.13, 32]} />
+            {Metal({ ro: 0.1 })}
+          </mesh>
+          {Array.from({ length: 22 }).map((_, i) => {
+            const a = (i / 22) * TAU;
             return (
               <mesh
                 key={i}
-                position={[0.11, Math.cos(a) * 0.09, Math.sin(a) * 0.09]}
+                position={[0.11, Math.cos(a) * 0.088, Math.sin(a) * 0.088]}
                 rotation={[a, 0, Math.PI / 2]}
               >
-                <boxGeometry args={[0.02, 0.14, 0.018]} />
-                {Metal({ roughness: 0.4 })}
+                <boxGeometry args={[0.014, 0.13, 0.014]} />
+                {Metal({ polished: true })}
               </mesh>
             );
           })}
-          <mesh position={[0.2, 0, 0]}>
-            <sphereGeometry args={[0.05, 16, 16]} />
-            {Metal({ roughness: 0.3 })}
+          <mesh position={[0.185, 0, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <sphereGeometry args={[0.052, 20, 16, 0, TAU, 0, Math.PI / 2]} />
+            {Metal({ polished: true })}
           </mesh>
         </group>
 
@@ -578,23 +705,31 @@ export default function Timepiece(props: Props) {
         </group>
         <group ref={strapRef}>
           {[1, -1].map((dir) =>
-            Array.from({ length: 5 }).map((_, i) => {
-              const t = i / 4;
-              const w = 0.86 - t * 0.22;
+            Array.from({ length: 6 }).map((_, i) => {
+              const t = i / 5;
+              const w = 0.9 - t * 0.28;
+              const link = w / 3;
               return (
-                <mesh
+                <group
                   key={`${dir}-${i}`}
-                  position={[0, dir * (1.15 + i * 0.44), -0.04 - t * 0.08]}
-                  rotation={[dir * t * 0.18, 0, 0]}
+                  position={[0, dir * (1.05 + i * 0.34), -0.05 - t * 0.16]}
+                  rotation={[dir * (0.06 + t * 0.16), 0, 0]}
                 >
-                  <boxGeometry args={[w, 0.36, 0.1]} />
-                  <meshStandardMaterial
-                    ref={pushMetal}
-                    color="#c7ccd4"
-                    metalness={0.45}
-                    roughness={0.36}
-                  />
-                </mesh>
+                  {/* centre link — brushed top */}
+                  <mesh castShadow receiveShadow>
+                    <boxGeometry args={[link * 1.02, 0.26, 0.12]} />
+                    {Metal({ ro: 0.16 })}
+                  </mesh>
+                  {/* polished side links */}
+                  <mesh position={[link, 0, -0.005]} castShadow>
+                    <boxGeometry args={[link * 1.02, 0.24, 0.11]} />
+                    {Metal({ polished: true })}
+                  </mesh>
+                  <mesh position={[-link, 0, -0.005]} castShadow>
+                    <boxGeometry args={[link * 1.02, 0.24, 0.11]} />
+                    {Metal({ polished: true })}
+                  </mesh>
+                </group>
               );
             }),
           )}
@@ -603,14 +738,15 @@ export default function Timepiece(props: Props) {
         {/* -------- hourglass -------- */}
         <mesh ref={bulbsRef} geometry={hgGeo}>
           <meshPhysicalMaterial
-            transmission={0.82}
-            thickness={0.5}
-            roughness={0.04}
+            transmission={1}
+            thickness={0.25}
+            roughness={0.06}
             ior={1.5}
             clearcoat={1}
+            clearcoatRoughness={0.05}
             transparent
-            opacity={0.16}
-            color="#eef3f6"
+            opacity={1}
+            color="#f2f6f8"
             side={THREE.DoubleSide}
             depthWrite={false}
           />
