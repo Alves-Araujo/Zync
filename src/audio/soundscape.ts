@@ -451,7 +451,7 @@ class SoundscapeEngine {
       };
       cycle();
     } else {
-      this.shower(ctx, layer);
+      this.cafe(ctx, layer);
     }
     return layer;
   }
@@ -561,26 +561,86 @@ class SoundscapeEngine {
     );
   }
 
-  /** A running shower: broadband spray, the low roar of water on tiles, and droplets. */
-  private shower(ctx: AudioContext, layer: Layer) {
-    chain(
-      this.loop(ctx, layer, 'white'),
-      biquad(ctx, 'highpass', 600),
-      biquad(ctx, 'lowpass', 9000),
-      amp(ctx, 0.35),
-      layer.out,
-    );
-    chain(this.loop(ctx, layer, 'pink'), biquad(ctx, 'bandpass', 1800, 0.5), amp(ctx, 0.85), layer.out);
-    chain(this.loop(ctx, layer, 'brown'), biquad(ctx, 'lowpass', 400), amp(ctx, 0.8), layer.out);
-    const drops = amp(ctx, 0.5);
-    drops.connect(layer.out);
-    const tick = () => {
-      const base = ctx.currentTime + 0.05;
-      const n = 4 + Math.floor(rand() * 4);
-      for (let i = 0; i < n; i++) this.drop(ctx, drops, base + rand() * 0.1, 0.04 + rand() * 0.08);
-      layer.after(100, tick);
+  /** A busy coffee shop: room murmur, snippets of chatter, cups and the steam wand. */
+  private cafe(ctx: AudioContext, layer: Layer) {
+    const murmurBP = biquad(ctx, 'bandpass', 500, 0.7);
+    const murmur = amp(ctx, 0.45);
+    chain(this.loop(ctx, layer, 'pink'), murmurBP, murmur, layer.out);
+    chain(this.loop(ctx, layer, 'brown'), biquad(ctx, 'lowpass', 250), amp(ctx, 0.4), layer.out);
+    const swell = () => {
+      const now = ctx.currentTime;
+      murmur.gain.setTargetAtTime(0.32 + rand() * 0.28, now, 1.4);
+      murmurBP.frequency.setTargetAtTime(380 + rand() * 420, now, 2);
+      layer.after(2500 + rand() * 3000, swell);
     };
-    tick();
+    swell();
+
+    // chatter: noise gated at syllable rate, as if someone were talking a table away
+    const chatter = amp(ctx, 1);
+    chatter.connect(layer.out);
+    const talk = () => {
+      const t0 = ctx.currentTime + 0.05;
+      const bursts = 2 + Math.floor(rand() * 4);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0, t0);
+      chain(
+        this.burst(ctx, 'pink', t0, 1.6),
+        biquad(ctx, 'bandpass', 300 + rand() * 500, 2.5),
+        g,
+        pan(ctx, rand() * 1.6 - 0.8),
+        chatter,
+      );
+      let t = t0;
+      for (let i = 0; i < bursts; i++) {
+        const d = 0.08 + rand() * 0.12;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.05 + rand() * 0.05, t + 0.02);
+        g.gain.linearRampToValueAtTime(0, t + d);
+        t += d + 0.04 + rand() * 0.08;
+      }
+      layer.after(600 + rand() * 1800, talk);
+    };
+    talk();
+
+    // porcelain, spoons and the espresso machine
+    const counter = amp(ctx, 0.6);
+    counter.connect(layer.out);
+    const clink = () => {
+      const t = ctx.currentTime + 0.05;
+      if (rand() < 0.78) {
+        const f = 1400 + rand() * 2600;
+        const where = pan(ctx, rand() * 1.6 - 0.8);
+        chain(where, counter);
+        [1, 2.76].forEach((mult, i) => {
+          const osc = ctx.createOscillator();
+          osc.frequency.value = f * mult;
+          const g = ctx.createGain();
+          g.gain.setValueAtTime(0, t);
+          g.gain.linearRampToValueAtTime((0.05 + rand() * 0.05) / (i + 1), t + 0.003);
+          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25 + rand() * 0.35);
+          chain(osc, g, where);
+          osc.start(t);
+          osc.stop(t + 0.7);
+        });
+      } else {
+        const d = 0.8 + rand() * 1.4;
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.12, t + 0.08);
+        g.gain.setValueAtTime(0.12, t + d - 0.15);
+        g.gain.linearRampToValueAtTime(0, t + d);
+        chain(
+          this.burst(ctx, 'white', t, d + 0.1),
+          biquad(ctx, 'highpass', 2500),
+          biquad(ctx, 'bandpass', 4500, 0.8),
+          g,
+          pan(ctx, rand() * 1.2 - 0.6),
+          counter,
+        );
+      }
+      layer.after(1200 + rand() * 4000, clink);
+    };
+    layer.after(900, clink);
   }
 
   private ocean(ctx: AudioContext, layer: Layer) {

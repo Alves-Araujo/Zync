@@ -12,6 +12,8 @@ export interface VisualPrefs {
   particles: boolean;
   /** The 3D timepiece itself. */
   clock3d: boolean;
+  /** The digital time under the clock. */
+  readout: boolean;
 }
 
 const STORAGE_KEY = 'zync:visuals:v1';
@@ -22,10 +24,12 @@ export const VISUAL_DEFAULTS: VisualPrefs = {
   glow: true,
   particles: true,
   clock3d: true,
+  readout: true,
 };
 
 export const VISUAL_OPTIONS: { key: keyof VisualPrefs; label: string }[] = [
   { key: 'clock3d', label: 'Relógio 3D' },
+  { key: 'readout', label: 'Relógio digital' },
   { key: 'gears', label: 'Engrenagens no fundo' },
   { key: 'scenery', label: 'Cenário do som' },
   { key: 'particles', label: 'Partículas' },
@@ -59,7 +63,15 @@ export function useVisualPrefs() {
 
   /** Turn every effect off (or back on) at once — the "modo leve" shortcut. */
   const setAllVisuals = useCallback((value: boolean) => {
-    setVisuals({ gears: value, scenery: value, glow: value, particles: value, clock3d: value });
+    setVisuals({
+      gears: value,
+      scenery: value,
+      glow: value,
+      particles: value,
+      clock3d: value,
+      // the digital time is not an animation, so it stays on when everything is switched off
+      readout: true,
+    });
   }, []);
 
   return { visuals, setVisual, setAllVisuals };

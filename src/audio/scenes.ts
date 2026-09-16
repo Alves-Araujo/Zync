@@ -1,4 +1,4 @@
-export type NoiseKind = 'white' | 'pink' | 'brown' | 'grey' | 'fan' | 'shower' | 'airplane' | 'train';
+export type NoiseKind = 'white' | 'pink' | 'brown' | 'grey' | 'fan' | 'cafe' | 'airplane' | 'train';
 export type NatureKind =
   | 'rain'
   | 'ocean'
@@ -51,10 +51,10 @@ export const NOISE_OPTIONS: SoundOption<NoiseKind>[] = [
     tags: ['Aconchego', 'Dormir'],
   },
   {
-    id: 'shower',
-    name: 'Chuveiro',
-    description: 'Água caindo sem parar, com o eco grave do banheiro e gotas nos azulejos.',
-    tags: ['Constante', 'Relaxar'],
+    id: 'cafe',
+    name: 'Cafeteria',
+    description: 'Conversa ao longe, xícaras tilintando e o vapor da máquina de café.',
+    tags: ['Estudar fora', 'Companhia'],
   },
   {
     id: 'airplane',
@@ -127,7 +127,7 @@ export const SCENE_THEME: Record<SceneId, { accent: string; tint: string }> = {
   brown: { accent: '#d4a373', tint: '166, 108, 60' },
   grey: { accent: '#b4b8c0', tint: '161, 165, 175' },
   fan: { accent: '#7dd3fc', tint: '56, 150, 200' },
-  shower: { accent: '#99f6e4', tint: '45, 212, 191' },
+  cafe: { accent: '#f4a261', tint: '221, 145, 80' },
   airplane: { accent: '#bae6fd', tint: '125, 200, 252' },
   train: { accent: '#c4b5fd', tint: '139, 92, 246' },
   rain: { accent: '#60a5fa', tint: '37, 99, 235' },

@@ -679,78 +679,86 @@ function TrainArt({ u }: { u: string }) {
   );
 }
 
-const STEAM = Array.from({ length: 8 }, (_, i) => ({
-  cx: 120 + rand(i + 330) * 80,
-  cy: 150 + rand(i + 340) * 20,
-  r: 10 + rand(i + 350) * 14,
+const STEAM = Array.from({ length: 7 }, (_, i) => ({
+  cx: 96 + rand(i + 330) * 22,
+  cy: 120 + rand(i + 340) * 10,
+  r: 5 + rand(i + 350) * 7,
   dur: 2.6 + rand(i + 360) * 1.8,
   delay: -rand(i + 370) * 4,
 }));
-const JETS = Array.from({ length: 26 }, (_, i) => ({
-  x: 116 + rand(i + 372) * 88,
-  y: rand(i + 374) * 200,
-  len: 26 + rand(i + 376) * 40,
+const CAFE_BOKEH = Array.from({ length: 12 }, (_, i) => ({
+  cx: 150 + rand(i + 372) * 170,
+  cy: 20 + rand(i + 374) * 90,
+  r: 5 + rand(i + 376) * 11,
+  c: ['#ffd9a0', '#ffb36b', '#fff1cf'][i % 3],
+  o: 0.3 + rand(i + 378) * 0.45,
 }));
-const TILES = Array.from({ length: 4 }, (_, i) => 40 + i * 40);
 
-function ShowerArt({ u }: { u: string }) {
+function CafeArt({ u }: { u: string }) {
   return (
     <Frame>
       <defs>
         <linearGradient id={`${u}bg`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#12333a" />
-          <stop offset="1" stopColor="#0b1f24" />
+          <stop offset="0" stopColor="#3a2317" />
+          <stop offset="1" stopColor="#170d08" />
         </linearGradient>
-        <linearGradient id={`${u}jet`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#dff4fb" stopOpacity="0.75" />
-          <stop offset="1" stopColor="#8fd3e6" stopOpacity="0.25" />
+        <linearGradient id={`${u}table`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#7a4a28" />
+          <stop offset="1" stopColor="#4a2a17" />
         </linearGradient>
-        <radialGradient id={`${u}glow`}>
-          <stop offset="0" stopColor="#d9f6ff" stopOpacity="0.28" />
-          <stop offset="1" stopColor="#d9f6ff" stopOpacity="0" />
+        <radialGradient id={`${u}lamp`}>
+          <stop offset="0" stopColor="#ffca7a" stopOpacity="0.55" />
+          <stop offset="1" stopColor="#ffca7a" stopOpacity="0" />
         </radialGradient>
-        <clipPath id={`${u}clip`}>
-          <path d="M116 44 L204 44 L216 196 L104 196 Z" />
-        </clipPath>
+        <linearGradient id={`${u}cup`} x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stopColor="#fdfaf5" />
+          <stop offset="0.55" stopColor="#e6ddd2" />
+          <stop offset="1" stopColor="#c8bdb0" />
+        </linearGradient>
         <filter id={`${u}b`}>
           <feGaussianBlur stdDeviation="4" />
         </filter>
       </defs>
       <rect width="320" height="200" fill={`url(#${u}bg)`} />
-      {TILES.map((y) => (
-        <line key={y} x1="0" y1={y} x2="320" y2={y} stroke="#2b535c" strokeOpacity="0.5" strokeWidth="1" />
-      ))}
-      {[40, 120, 200, 280].map((x) => (
-        <line key={x} x1={x} y1="0" x2={x} y2="200" stroke="#2b535c" strokeOpacity="0.35" strokeWidth="1" />
-      ))}
-      <circle cx="160" cy="120" r="110" fill={`url(#${u}glow)`} />
-      {/* shower arm and head */}
-      <path d="M160 0 V22 Q160 34 172 34" fill="none" stroke="#cfdde1" strokeWidth="6" strokeLinecap="round" />
-      <ellipse cx="180" cy="38" rx="26" ry="9" fill="#e6eef0" />
-      <ellipse cx="180" cy="42" rx="24" ry="7" fill="#b9c8cd" />
-      <path d="M116 44 L204 44 L216 196 L104 196 Z" fill={`url(#${u}jet)`} opacity="0.5" />
-      <g clipPath={`url(#${u}clip)`}>
-        <g className="art-rain" style={anim(0.7)}>
-          {[0, 200].map((off) =>
-            JETS.map((j, i) => (
-              <line
-                key={`${off}-${i}`}
-                x1={n(j.x)}
-                y1={n(j.y + off)}
-                x2={n(j.x + 3)}
-                y2={n(j.y + off + j.len)}
-                stroke="#eaf9ff"
-                strokeOpacity="0.5"
-                strokeWidth="1.3"
-              />
-            )),
-          )}
-        </g>
+      {/* warm window light and street bokeh at the back */}
+      <rect x="150" y="10" width="160" height="104" rx="6" fill="#2a1a12" />
+      <rect x="150" y="10" width="160" height="104" rx="6" fill="#c98a4e" opacity="0.18" />
+      <g filter={`url(#${u}b)`}>
+        {CAFE_BOKEH.map((c, i) => (
+          <circle key={i} cx={n(c.cx)} cy={n(c.cy)} r={n(c.r)} fill={c.c} opacity={c.o} />
+        ))}
       </g>
-      <ellipse cx="160" cy="194" rx="86" ry="12" fill="#7fc6d8" opacity="0.4" />
+      {/* hanging lamps */}
+      {[196, 244, 292].map((x, i) => (
+        <g key={x}>
+          <line x1={x} y1="0" x2={x} y2={20 + i * 6} stroke="#2a1a12" strokeWidth="2" />
+          <path d={`M${x - 12} ${32 + i * 6} L${x} ${20 + i * 6} L${x + 12} ${32 + i * 6} Z`} fill="#c9762f" />
+          <circle className="art-glint" cx={x} cy={34 + i * 6} r="14" fill={`url(#${u}lamp)`} style={anim(3 + i)} />
+        </g>
+      ))}
+      {/* people silhouettes */}
+      <g fill="#120a06" opacity="0.85">
+        <circle cx="214" cy="84" r="13" />
+        <path d="M192 118 q22 -22 44 0 v10 h-44 Z" />
+        <circle cx="268" cy="92" r="11" />
+        <path d="M250 120 q18 -18 36 0 v8 h-36 Z" />
+      </g>
+      {/* counter / table in the foreground */}
+      <rect y="132" width="320" height="68" fill={`url(#${u}table)`} />
+      <rect y="132" width="320" height="4" fill="#94623a" />
+      {/* cup of coffee */}
+      <path d="M74 126 h44 v20 a22 22 0 0 1 -44 0 Z" fill={`url(#${u}cup)`} />
+      <path d="M118 128 a13 13 0 0 1 0 22" fill="none" stroke="#e6ddd2" strokeWidth="5" />
+      <ellipse cx="96" cy="126" rx="22" ry="6" fill="#fdfaf5" />
+      <ellipse cx="96" cy="126" rx="17" ry="4.2" fill="#6b3a1d" />
+      <ellipse cx="96" cy="168" rx="34" ry="7" fill="#2a170d" opacity="0.6" />
+      {/* saucer and spoon */}
+      <ellipse cx="96" cy="164" rx="40" ry="9" fill="#efe7dc" />
+      <path d="M140 160 l26 -6" stroke="#cfd6d8" strokeWidth="3" strokeLinecap="round" />
+      <ellipse cx="170" cy="153" rx="6" ry="4" fill="#cfd6d8" transform="rotate(-12 170 153)" />
       <g filter={`url(#${u}b)`}>
         {STEAM.map((m, i) => (
-          <circle key={i} className="art-mist" cx={n(m.cx)} cy={n(m.cy)} r={n(m.r)} fill="#eafaff" style={anim(m.dur, m.delay)} />
+          <circle key={i} className="art-mist" cx={n(m.cx)} cy={n(m.cy)} r={n(m.r)} fill="#ffeccd" style={anim(m.dur, m.delay)} />
         ))}
       </g>
     </Frame>
@@ -1026,8 +1034,8 @@ export default function SoundArt({ kind, live }: { kind: NoiseKind | NatureKind;
       return <FanArt u={u} live={live} />;
     case 'grey':
       return <GreyArt u={u} />;
-    case 'shower':
-      return <ShowerArt u={u} />;
+    case 'cafe':
+      return <CafeArt u={u} />;
     case 'airplane':
       return <AirplaneArt u={u} />;
     case 'train':

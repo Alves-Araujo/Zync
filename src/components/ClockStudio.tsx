@@ -24,7 +24,8 @@ export default function ClockStudio({
   onVisual,
   onAllVisuals,
 }: Props) {
-  const allOff = VISUAL_OPTIONS.every((o) => !visuals[o.key]);
+  // the digital clock is not an animation, so it does not count for "desligar todas"
+  const allOff = VISUAL_OPTIONS.every((o) => o.key === 'readout' || !visuals[o.key]);
   return (
     <aside className="panel studio">
       <header className="panel-head">

@@ -387,7 +387,7 @@ function App() {
                 </div>
               )}
 
-              {visuals.clock3d && <p className="stage-readout">{view.readout}</p>}
+              {visuals.clock3d && visuals.readout && <p className="stage-readout">{view.readout}</p>}
               <p className="timer-status">{view.text}</p>
 
               {mode === 'pomodoro' && state.status !== 'idle' && cycles.length > 1 && (

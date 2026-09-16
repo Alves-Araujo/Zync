@@ -439,14 +439,14 @@ function MistArt() {
   );
 }
 
-function NoiseSceneArt({ kind }: { kind: NoiseScene | 'fan' | 'shower' }) {
+function NoiseSceneArt({ kind }: { kind: NoiseScene | 'fan' | 'cafe' }) {
   const grain = getGrain();
   return (
     <>
       <div className="grain" style={grain ? { backgroundImage: `url(${grain})` } : undefined} />
       {kind === 'fan' ? (
         <FanArt />
-      ) : kind === 'shower' ? (
+      ) : kind === 'cafe' ? (
         <MistArt />
       ) : (
         <div className="ribbons">
@@ -633,7 +633,7 @@ function SceneLayer({
         scene === 'brown' ||
         scene === 'grey' ||
         scene === 'fan' ||
-        scene === 'shower' ||
+        scene === 'cafe' ||
         scene === 'airplane' ||
         scene === 'train') && (
         <NoiseSceneArt kind={scene} />

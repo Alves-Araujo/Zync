@@ -270,7 +270,7 @@ kbd {
 .scene-brown .scene-tint,
 .scene-grey .scene-tint,
 .scene-fan .scene-tint,
-.scene-shower .scene-tint,
+.scene-cafe .scene-tint,
 .scene-airplane .scene-tint,
 .scene-train .scene-tint {
   background:
@@ -568,7 +568,7 @@ kbd {
   opacity: 0.04;
 }
 .scene-fan .grain,
-.scene-shower .grain,
+.scene-cafe .grain,
 .scene-airplane .grain,
 .scene-train .grain {
   opacity: 0.03;
@@ -859,19 +859,28 @@ kbd {
 }
 
 .toggles {
-  gap: 0.7rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
 }
 .toggle {
   display: flex;
+  width: 100%;
   align-items: center;
-  gap: 0.7rem;
-  background: none;
+  gap: 0.75rem;
+  padding: 0.5rem 0.55rem;
   border: none;
+  border-radius: 10px;
+  background: none;
   color: var(--text);
   font: inherit;
-  font-size: 0.82rem;
+  font-size: 0.84rem;
+  text-align: left;
   cursor: pointer;
-  padding: 0;
+  transition: background 0.18s;
+}
+.toggle:hover {
+  background: var(--panel-2);
 }
 .toggle-track {
   width: 34px;
