@@ -439,15 +439,26 @@ function MistArt() {
   );
 }
 
-function NoiseSceneArt({ kind }: { kind: NoiseScene | 'fan' | 'cafe' }) {
+/** Two slowly drifting rings, like the two tones going in and out of phase. */
+function BinauralScene() {
+  return (
+    <div className="binaural">
+      <span className="beat-ring" />
+      <span className="beat-ring two" />
+      <span className="beat-ring three" />
+    </div>
+  );
+}
+
+function NoiseSceneArt({ kind }: { kind: NoiseScene | 'fan' | 'binaural' }) {
   const grain = getGrain();
   return (
     <>
       <div className="grain" style={grain ? { backgroundImage: `url(${grain})` } : undefined} />
       {kind === 'fan' ? (
         <FanArt />
-      ) : kind === 'cafe' ? (
-        <MistArt />
+      ) : kind === 'binaural' ? (
+        <BinauralScene />
       ) : (
         <div className="ribbons">
           {RIBBONS[kind].paths.map((d, i) => (
@@ -633,7 +644,7 @@ function SceneLayer({
         scene === 'brown' ||
         scene === 'grey' ||
         scene === 'fan' ||
-        scene === 'cafe' ||
+        scene === 'binaural' ||
         scene === 'airplane' ||
         scene === 'train') && (
         <NoiseSceneArt kind={scene} />

@@ -1,4 +1,4 @@
-import type { NatureKind, NoiseKind } from './scenes';
+import { BINAURAL_BEAT, binauralCarrier, type BinauralBand, type NatureKind, type NoiseKind } from './scenes';
 
 // generated on the audio thread so the sound never loops (see noise-processor.js)
 const NOISE_WORKLET_URL = new URL('./noise-processor.js', import.meta.url).href;
@@ -21,6 +21,9 @@ export interface SoundState {
   /** 0 = darker, 0.5 = neutral, 1 = brighter (a gentle tilt EQ per category). */
   noiseTone: number;
   natureTone: number;
+  binauralBand: BinauralBand;
+  /** 0..1 → the carrier tone both ears share (80–320 Hz). */
+  binauralTone: number;
 }
 
 type NoiseColor = 'white' | 'pink' | 'brown';
@@ -154,7 +157,7 @@ class SoundscapeEngine {
 
     if ((this.noiseLayer?.kind ?? null) !== s.noise) {
       this.noiseLayer?.layer.stop();
-      this.noiseLayer = s.noise ? { kind: s.noise, layer: this.buildNoise(ctx, s.noise) } : null;
+      this.noiseLayer = s.noise ? { kind: s.noise, layer: this.buildNoise(ctx, s.noise, s) } : null;
     }
     if ((this.natureLayer?.kind ?? null) !== s.nature) {
       this.natureLayer?.layer.stop();
@@ -370,7 +373,7 @@ class SoundscapeEngine {
 
   // -- noises --------------------------------------------------------------------
 
-  private buildNoise(ctx: AudioContext, kind: NoiseKind): Layer {
+  private buildNoise(ctx: AudioContext, kind: NoiseKind, s: SoundState): Layer {
     const layer = new Layer(ctx, this.noiseBus!);
     if (kind === 'white') {
       chain(this.loop(ctx, layer, 'white'), biquad(ctx, 'lowpass', 14000), amp(ctx, 0.55), layer.out);
@@ -451,7 +454,7 @@ class SoundscapeEngine {
       };
       cycle();
     } else {
-      this.cafe(ctx, layer);
+      this.binaural(ctx, layer, s);
     }
     return layer;
   }
@@ -561,86 +564,41 @@ class SoundscapeEngine {
     );
   }
 
-  /** A busy coffee shop: room murmur, snippets of chatter, cups and the steam wand. */
-  private cafe(ctx: AudioContext, layer: Layer) {
-    const murmurBP = biquad(ctx, 'bandpass', 500, 0.7);
-    const murmur = amp(ctx, 0.45);
-    chain(this.loop(ctx, layer, 'pink'), murmurBP, murmur, layer.out);
-    chain(this.loop(ctx, layer, 'brown'), biquad(ctx, 'lowpass', 250), amp(ctx, 0.4), layer.out);
-    const swell = () => {
+  /**
+   * Binaural beats: a pure tone in each ear, a few Hz apart. The beat itself is
+   * never played — the brain hears the difference, which only works on headphones.
+   */
+  private binaural(ctx: AudioContext, layer: Layer, s: SoundState) {
+    const ear = (side: number) => {
+      const panner = ctx.createStereoPanner();
+      panner.pan.value = side;
+      panner.connect(layer.out);
+      const osc = layer.hold(ctx.createOscillator());
+      osc.type = 'sine';
+      chain(osc, amp(ctx, 0.3), panner);
+      osc.start();
+      return osc;
+    };
+    const left = ear(-1);
+    const right = ear(1);
+
+    // a soft harmonic and a quiet bed of air keep the pure tones from feeling harsh
+    const harmonic = layer.hold(ctx.createOscillator());
+    harmonic.type = 'sine';
+    chain(harmonic, amp(ctx, 0.05), layer.out);
+    harmonic.start();
+    chain(this.loop(ctx, layer, 'pink'), biquad(ctx, 'lowpass', 900), amp(ctx, 0.07), layer.out);
+
+    const apply = (next: SoundState) => {
+      const carrier = binauralCarrier(next.binauralTone);
+      const beat = BINAURAL_BEAT[next.binauralBand] ?? 10;
       const now = ctx.currentTime;
-      murmur.gain.setTargetAtTime(0.32 + rand() * 0.28, now, 1.4);
-      murmurBP.frequency.setTargetAtTime(380 + rand() * 420, now, 2);
-      layer.after(2500 + rand() * 3000, swell);
+      left.frequency.setTargetAtTime(carrier - beat / 2, now, 0.15);
+      right.frequency.setTargetAtTime(carrier + beat / 2, now, 0.15);
+      harmonic.frequency.setTargetAtTime(carrier * 2, now, 0.15);
     };
-    swell();
-
-    // chatter: noise gated at syllable rate, as if someone were talking a table away
-    const chatter = amp(ctx, 1);
-    chatter.connect(layer.out);
-    const talk = () => {
-      const t0 = ctx.currentTime + 0.05;
-      const bursts = 2 + Math.floor(rand() * 4);
-      const g = ctx.createGain();
-      g.gain.setValueAtTime(0, t0);
-      chain(
-        this.burst(ctx, 'pink', t0, 1.6),
-        biquad(ctx, 'bandpass', 300 + rand() * 500, 2.5),
-        g,
-        pan(ctx, rand() * 1.6 - 0.8),
-        chatter,
-      );
-      let t = t0;
-      for (let i = 0; i < bursts; i++) {
-        const d = 0.08 + rand() * 0.12;
-        g.gain.setValueAtTime(0, t);
-        g.gain.linearRampToValueAtTime(0.05 + rand() * 0.05, t + 0.02);
-        g.gain.linearRampToValueAtTime(0, t + d);
-        t += d + 0.04 + rand() * 0.08;
-      }
-      layer.after(600 + rand() * 1800, talk);
-    };
-    talk();
-
-    // porcelain, spoons and the espresso machine
-    const counter = amp(ctx, 0.6);
-    counter.connect(layer.out);
-    const clink = () => {
-      const t = ctx.currentTime + 0.05;
-      if (rand() < 0.78) {
-        const f = 1400 + rand() * 2600;
-        const where = pan(ctx, rand() * 1.6 - 0.8);
-        chain(where, counter);
-        [1, 2.76].forEach((mult, i) => {
-          const osc = ctx.createOscillator();
-          osc.frequency.value = f * mult;
-          const g = ctx.createGain();
-          g.gain.setValueAtTime(0, t);
-          g.gain.linearRampToValueAtTime((0.05 + rand() * 0.05) / (i + 1), t + 0.003);
-          g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25 + rand() * 0.35);
-          chain(osc, g, where);
-          osc.start(t);
-          osc.stop(t + 0.7);
-        });
-      } else {
-        const d = 0.8 + rand() * 1.4;
-        const g = ctx.createGain();
-        g.gain.setValueAtTime(0, t);
-        g.gain.linearRampToValueAtTime(0.12, t + 0.08);
-        g.gain.setValueAtTime(0.12, t + d - 0.15);
-        g.gain.linearRampToValueAtTime(0, t + d);
-        chain(
-          this.burst(ctx, 'white', t, d + 0.1),
-          biquad(ctx, 'highpass', 2500),
-          biquad(ctx, 'bandpass', 4500, 0.8),
-          g,
-          pan(ctx, rand() * 1.2 - 0.6),
-          counter,
-        );
-      }
-      layer.after(1200 + rand() * 4000, clink);
-    };
-    layer.after(900, clink);
+    layer.update = apply;
+    apply(s);
   }
 
   private ocean(ctx: AudioContext, layer: Layer) {

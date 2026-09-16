@@ -27,13 +27,15 @@ export const SOUND_DEFAULTS: SoundSettings = {
   thunder: false,
   noiseTone: 0.5,
   natureTone: 0.5,
+  binauralBand: 'alpha',
+  binauralTone: 0.5,
   syncTheme: true,
   focus: 'noise',
 };
 
 /** Settings that each tab's "Restaurar padrão" button puts back to their defaults. */
 export const CONTROL_KEYS: Record<SoundCategory, (keyof SoundSettings)[]> = {
-  noise: ['noiseVolume', 'noiseTone'],
+  noise: ['noiseVolume', 'noiseTone', 'binauralBand', 'binauralTone'],
   nature: ['natureVolume', 'natureTone', 'rainIntensity', 'thunder'],
 };
 

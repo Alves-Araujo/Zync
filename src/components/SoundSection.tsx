@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import {
+  BINAURAL_BANDS,
+  binauralCarrier,
   NATURE_OPTIONS,
   NOISE_OPTIONS,
   rainLabel,
@@ -9,6 +11,7 @@ import {
   type SoundOption,
 } from '../audio/scenes';
 import { CONTROL_KEYS, SOUND_DEFAULTS, type SoundSettings } from '../hooks/useSoundscape';
+import SegmentedControl from './SegmentedControl';
 import SoundArt from './SoundArt';
 import Toggle from './Toggle';
 
@@ -142,7 +145,14 @@ export default function SoundSection({
   const hasSound = Boolean(noiseOpt || natureOpt);
 
   const isNoise = tab === 'noise';
-  const special = !isNoise && settings.nature === 'rain' ? 'rain' : null;
+  const special = isNoise
+    ? settings.noise === 'binaural'
+      ? 'binaural'
+      : null
+    : settings.nature === 'rain'
+      ? 'rain'
+      : null;
+  const band = BINAURAL_BANDS.find((b) => b.value === settings.binauralBand) ?? BINAURAL_BANDS[2];
   const tabOption = isNoise ? noiseOpt : natureOpt;
   const atDefaults = CONTROL_KEYS[tab].every((key) => settings[key] === SOUND_DEFAULTS[key]);
 
@@ -330,6 +340,23 @@ export default function SoundSection({
             </>
           )}
 
+          {special === 'binaural' && (
+            <>
+              <SegmentedControl
+                label={`Onda · ${band.beat} Hz (${band.use})`}
+                value={settings.binauralBand}
+                options={BINAURAL_BANDS}
+                onChange={(binauralBand) => onUpdate({ binauralBand, focus: 'noise' })}
+              />
+              <Slider
+                label="Tom base"
+                value={settings.binauralTone}
+                display={`${binauralCarrier(settings.binauralTone)} Hz`}
+                onChange={(binauralTone) => onUpdate({ binauralTone })}
+              />
+            </>
+          )}
+
           {!special && (
             <p className="sound-tip">
               <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
@@ -343,7 +370,7 @@ export default function SoundSection({
                 />
               </svg>
               {isNoise
-                ? 'Dica: combine um ruído com um som da aba Natureza — o timbre ajusta os dois separadamente.'
+                ? 'Dica: as Ondas binaurais só funcionam de fone, porque cada ouvido recebe um tom diferente.'
                 : 'Dica: escolha Chuva para ajustar a intensidade e ligar os trovões.'}
             </p>
           )}

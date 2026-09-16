@@ -679,88 +679,60 @@ function TrainArt({ u }: { u: string }) {
   );
 }
 
-const STEAM = Array.from({ length: 7 }, (_, i) => ({
-  cx: 96 + rand(i + 330) * 22,
-  cy: 120 + rand(i + 340) * 10,
-  r: 5 + rand(i + 350) * 7,
-  dur: 2.6 + rand(i + 360) * 1.8,
-  delay: -rand(i + 370) * 4,
-}));
-const CAFE_BOKEH = Array.from({ length: 12 }, (_, i) => ({
-  cx: 150 + rand(i + 372) * 170,
-  cy: 20 + rand(i + 374) * 90,
-  r: 5 + rand(i + 376) * 11,
-  c: ['#ffd9a0', '#ffb36b', '#fff1cf'][i % 3],
-  o: 0.3 + rand(i + 378) * 0.45,
-}));
+// two tones a few Hz apart: drawn as two waves that drift in and out of phase
+const BEAT_L = line(104, 26, 80, 0);
+const BEAT_R = line(104, 26, 88.9, 0.6);
 
-function CafeArt({ u }: { u: string }) {
+function BinauralArt({ u }: { u: string }) {
   return (
     <Frame>
       <defs>
         <linearGradient id={`${u}bg`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#3a2317" />
-          <stop offset="1" stopColor="#170d08" />
+          <stop offset="0" stopColor="#12122e" />
+          <stop offset="0.6" stopColor="#241c50" />
+          <stop offset="1" stopColor="#0d0d20" />
         </linearGradient>
-        <linearGradient id={`${u}table`} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#7a4a28" />
-          <stop offset="1" stopColor="#4a2a17" />
-        </linearGradient>
-        <radialGradient id={`${u}lamp`}>
-          <stop offset="0" stopColor="#ffca7a" stopOpacity="0.55" />
-          <stop offset="1" stopColor="#ffca7a" stopOpacity="0" />
+        <radialGradient id={`${u}glow`}>
+          <stop offset="0" stopColor="#a5b4fc" stopOpacity="0.45" />
+          <stop offset="1" stopColor="#a5b4fc" stopOpacity="0" />
         </radialGradient>
-        <linearGradient id={`${u}cup`} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor="#fdfaf5" />
-          <stop offset="0.55" stopColor="#e6ddd2" />
-          <stop offset="1" stopColor="#c8bdb0" />
-        </linearGradient>
         <filter id={`${u}b`}>
-          <feGaussianBlur stdDeviation="4" />
+          <feGaussianBlur stdDeviation="3" />
         </filter>
       </defs>
       <rect width="320" height="200" fill={`url(#${u}bg)`} />
-      {/* warm window light and street bokeh at the back */}
-      <rect x="150" y="10" width="160" height="104" rx="6" fill="#2a1a12" />
-      <rect x="150" y="10" width="160" height="104" rx="6" fill="#c98a4e" opacity="0.18" />
-      <g filter={`url(#${u}b)`}>
-        {CAFE_BOKEH.map((c, i) => (
-          <circle key={i} cx={n(c.cx)} cy={n(c.cy)} r={n(c.r)} fill={c.c} opacity={c.o} />
-        ))}
+      <circle className="art-glint" cx="160" cy="104" r="96" fill={`url(#${u}glow)`} style={anim(2.6)} />
+
+      {/* the two tones, one per ear */}
+      <g filter={`url(#${u}b)`} opacity="0.55">
+        <path d={BEAT_L} fill="none" stroke="#818cf8" strokeWidth="3" />
+        <path d={BEAT_R} fill="none" stroke="#f0abfc" strokeWidth="3" />
       </g>
-      {/* hanging lamps */}
-      {[196, 244, 292].map((x, i) => (
-        <g key={x}>
-          <line x1={x} y1="0" x2={x} y2={20 + i * 6} stroke="#2a1a12" strokeWidth="2" />
-          <path d={`M${x - 12} ${32 + i * 6} L${x} ${20 + i * 6} L${x + 12} ${32 + i * 6} Z`} fill="#c9762f" />
-          <circle className="art-glint" cx={x} cy={34 + i * 6} r="14" fill={`url(#${u}lamp)`} style={anim(3 + i)} />
-        </g>
-      ))}
-      {/* people silhouettes */}
-      <g fill="#120a06" opacity="0.85">
-        <circle cx="214" cy="84" r="13" />
-        <path d="M192 118 q22 -22 44 0 v10 h-44 Z" />
-        <circle cx="268" cy="92" r="11" />
-        <path d="M250 120 q18 -18 36 0 v8 h-36 Z" />
+      <g className="art-slide" style={anim(9)}>
+        <path d={BEAT_L} fill="none" stroke="#c7d2fe" strokeOpacity="0.9" strokeWidth="1.6" />
       </g>
-      {/* counter / table in the foreground */}
-      <rect y="132" width="320" height="68" fill={`url(#${u}table)`} />
-      <rect y="132" width="320" height="4" fill="#94623a" />
-      {/* cup of coffee */}
-      <path d="M74 126 h44 v20 a22 22 0 0 1 -44 0 Z" fill={`url(#${u}cup)`} />
-      <path d="M118 128 a13 13 0 0 1 0 22" fill="none" stroke="#e6ddd2" strokeWidth="5" />
-      <ellipse cx="96" cy="126" rx="22" ry="6" fill="#fdfaf5" />
-      <ellipse cx="96" cy="126" rx="17" ry="4.2" fill="#6b3a1d" />
-      <ellipse cx="96" cy="168" rx="34" ry="7" fill="#2a170d" opacity="0.6" />
-      {/* saucer and spoon */}
-      <ellipse cx="96" cy="164" rx="40" ry="9" fill="#efe7dc" />
-      <path d="M140 160 l26 -6" stroke="#cfd6d8" strokeWidth="3" strokeLinecap="round" />
-      <ellipse cx="170" cy="153" rx="6" ry="4" fill="#cfd6d8" transform="rotate(-12 170 153)" />
-      <g filter={`url(#${u}b)`}>
-        {STEAM.map((m, i) => (
-          <circle key={i} className="art-mist" cx={n(m.cx)} cy={n(m.cy)} r={n(m.r)} fill="#ffeccd" style={anim(m.dur, m.delay)} />
-        ))}
+      <g className="art-slide" style={anim(11)}>
+        <path d={BEAT_R} fill="none" stroke="#f5d0fe" strokeOpacity="0.8" strokeWidth="1.6" />
       </g>
+
+      {/* head with headphones, seen from above */}
+      <g transform="translate(160 118)">
+        <circle r="34" fill="#0b0b1c" />
+        <circle r="34" fill="none" stroke="#3b3b6b" strokeWidth="1.5" />
+        <path d="M-46 -6 A46 46 0 0 1 46 -6" fill="none" stroke="#cbd5f5" strokeWidth="7" strokeLinecap="round" />
+        <rect x="-56" y="-8" width="20" height="30" rx="8" fill="#e0e7ff" />
+        <rect x="36" y="-8" width="20" height="30" rx="8" fill="#e0e7ff" />
+        <circle className="art-glint" cx="-46" cy="7" r="4.5" fill="#818cf8" style={anim(1.8)} />
+        <circle className="art-glint" cx="46" cy="7" r="4.5" fill="#f0abfc" style={anim(1.8, -0.9)} />
+      </g>
+
+      {/* labels for each ear */}
+      <text x="18" y="32" fill="#c7d2fe" fillOpacity="0.85" fontSize="15" fontFamily="'Space Grotesk', sans-serif">
+        200 Hz
+      </text>
+      <text x="246" y="32" fill="#f5d0fe" fillOpacity="0.85" fontSize="15" fontFamily="'Space Grotesk', sans-serif">
+        210 Hz
+      </text>
     </Frame>
   );
 }
@@ -1034,8 +1006,8 @@ export default function SoundArt({ kind, live }: { kind: NoiseKind | NatureKind;
       return <FanArt u={u} live={live} />;
     case 'grey':
       return <GreyArt u={u} />;
-    case 'cafe':
-      return <CafeArt u={u} />;
+    case 'binaural':
+      return <BinauralArt u={u} />;
     case 'airplane':
       return <AirplaneArt u={u} />;
     case 'train':

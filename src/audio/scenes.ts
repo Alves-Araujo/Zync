@@ -1,4 +1,6 @@
-export type NoiseKind = 'white' | 'pink' | 'brown' | 'grey' | 'fan' | 'cafe' | 'airplane' | 'train';
+export type NoiseKind = 'white' | 'pink' | 'brown' | 'grey' | 'fan' | 'binaural' | 'airplane' | 'train';
+/** Brainwave ranges used by binaural beats (the beat is the difference between both ears). */
+export type BinauralBand = 'delta' | 'theta' | 'alpha' | 'beta' | 'gamma';
 export type NatureKind =
   | 'rain'
   | 'ocean'
@@ -51,10 +53,10 @@ export const NOISE_OPTIONS: SoundOption<NoiseKind>[] = [
     tags: ['Aconchego', 'Dormir'],
   },
   {
-    id: 'cafe',
-    name: 'Cafeteria',
-    description: 'Conversa ao longe, xícaras tilintando e o vapor da máquina de café.',
-    tags: ['Estudar fora', 'Companhia'],
+    id: 'binaural',
+    name: 'Ondas binaurais',
+    description: 'Dois tons quase iguais, um em cada ouvido. O cérebro ouve a diferença como uma pulsação.',
+    tags: ['Só com fones', 'Foco profundo'],
   },
   {
     id: 'airplane',
@@ -127,7 +129,7 @@ export const SCENE_THEME: Record<SceneId, { accent: string; tint: string }> = {
   brown: { accent: '#d4a373', tint: '166, 108, 60' },
   grey: { accent: '#b4b8c0', tint: '161, 165, 175' },
   fan: { accent: '#7dd3fc', tint: '56, 150, 200' },
-  cafe: { accent: '#f4a261', tint: '221, 145, 80' },
+  binaural: { accent: '#818cf8', tint: '99, 102, 241' },
   airplane: { accent: '#bae6fd', tint: '125, 200, 252' },
   train: { accent: '#c4b5fd', tint: '139, 92, 246' },
   rain: { accent: '#60a5fa', tint: '37, 99, 235' },
@@ -140,6 +142,28 @@ export const SCENE_THEME: Record<SceneId, { accent: string; tint: string }> = {
   night: { accent: '#fde047', tint: '202, 138, 4' },
   wind: { accent: '#a5f3fc', tint: '103, 200, 230' },
 };
+
+/** Beat frequency (Hz) of each band, and what it is usually used for. */
+export const BINAURAL_BANDS: { value: BinauralBand; label: string; beat: number; use: string }[] = [
+  { value: 'delta', label: 'Delta', beat: 2.5, use: 'sono profundo' },
+  { value: 'theta', label: 'Theta', beat: 6, use: 'meditação' },
+  { value: 'alpha', label: 'Alpha', beat: 10, use: 'relaxar acordado' },
+  { value: 'beta', label: 'Beta', beat: 18, use: 'foco e estudo' },
+  { value: 'gamma', label: 'Gamma', beat: 40, use: 'alerta máximo' },
+];
+
+export const BINAURAL_BEAT: Record<BinauralBand, number> = {
+  delta: 2.5,
+  theta: 6,
+  alpha: 10,
+  beta: 18,
+  gamma: 40,
+};
+
+/** Carrier tone the slider picks, in Hz. */
+export function binauralCarrier(tone: number): number {
+  return Math.round(80 + Math.min(1, Math.max(0, tone)) * 240);
+}
 
 export function rainLabel(intensity: number): string {
   if (intensity < 0.25) return 'Garoa';
