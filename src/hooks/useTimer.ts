@@ -1,34 +1,20 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CycleConfig, Phase, TimerState } from '../types';
 
-const ALERT_FREQUENCY = 660;
-const ALERT_DURATION = 0.18;
-
-function playAlert(pattern: number[] = [0, 0.25, 0.5]) {
-  try {
-    const ctx = new AudioContext();
-    pattern.forEach((offset, i) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = ALERT_FREQUENCY + i * 120;
-      gain.gain.setValueAtTime(0.0001, ctx.currentTime + offset);
-      gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + offset + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + offset + ALERT_DURATION);
-      osc.connect(gain).connect(ctx.destination);
-      osc.start(ctx.currentTime + offset);
-      osc.stop(ctx.currentTime + offset + ALERT_DURATION + 0.05);
-    });
-  } catch {
-    // audio not available
-  }
-}
-
 function getPhaseSeconds(cycles: CycleConfig[], cycleIndex: number, phase: Phase): number {
   const c = cycles[cycleIndex];
   if (!c) return 0;
   return (phase === 'focus' ? c.focusMinutes : c.breakMinutes) * 60;
 }
+
+const IDLE: TimerState = {
+  status: 'idle',
+  currentCycleIndex: 0,
+  currentPhase: 'focus',
+  remainingSeconds: 0,
+  phaseTotalSeconds: 0,
+  alarm: null,
+};
 
 interface TimerHandlers {
   /** Called once for every whole second elapsed inside a focus phase. */
@@ -38,14 +24,7 @@ interface TimerHandlers {
 }
 
 export function useTimer(cycles: CycleConfig[], handlers: TimerHandlers = {}) {
-  const [state, setState] = useState<TimerState>({
-    status: 'idle',
-    currentCycleIndex: 0,
-    currentPhase: 'focus',
-    remainingSeconds: 0,
-    phaseTotalSeconds: 0,
-  });
-
+  const [state, setState] = useState<TimerState>(IDLE);
   const [flash, setFlash] = useState(false);
   const intervalRef = useRef<number | null>(null);
   const handlersRef = useRef(handlers);
@@ -60,12 +39,7 @@ export function useTimer(cycles: CycleConfig[], handlers: TimerHandlers = {}) {
     }
   }, []);
 
-  const triggerAlert = useCallback((pattern?: number[]) => {
-    playAlert(pattern);
-    setFlash(true);
-    setTimeout(() => setFlash(false), 1200);
-  }, []);
-
+  /** Move on to the break, the next cycle, or the end of the session. */
   const advancePhase = useCallback(
     (prev: TimerState): TimerState => {
       if (prev.currentPhase === 'focus') {
@@ -76,6 +50,7 @@ export function useTimer(cycles: CycleConfig[], handlers: TimerHandlers = {}) {
             currentPhase: 'break',
             remainingSeconds: breakSec,
             phaseTotalSeconds: breakSec,
+            alarm: null,
           };
         }
       }
@@ -89,15 +64,26 @@ export function useTimer(cycles: CycleConfig[], handlers: TimerHandlers = {}) {
           currentPhase: 'focus',
           remainingSeconds: focusSec,
           phaseTotalSeconds: focusSec,
+          alarm: null,
         };
       }
       return {
+        ...prev,
         status: 'finished',
-        currentCycleIndex: prev.currentCycleIndex,
-        currentPhase: prev.currentPhase,
         remainingSeconds: 0,
-        phaseTotalSeconds: prev.phaseTotalSeconds,
+        alarm: null,
       };
+    },
+    [cycles],
+  );
+
+  /** Where the session would go next — used to describe the ringing alarm. */
+  const nextStep = useCallback(
+    (prev: TimerState): Phase | 'finished' => {
+      if (prev.currentPhase === 'focus' && getPhaseSeconds(cycles, prev.currentCycleIndex, 'break') > 0) {
+        return 'break';
+      }
+      return prev.currentCycleIndex + 1 < cycles.length ? 'focus' : 'finished';
     },
     [cycles],
   );
@@ -110,39 +96,44 @@ export function useTimer(cycles: CycleConfig[], handlers: TimerHandlers = {}) {
 
     intervalRef.current = window.setInterval(() => {
       setState((prev) => {
+        if (prev.status !== 'running') return prev;
         if (prev.currentPhase === 'focus') {
           handlersRef.current.onFocusSecond?.();
         }
         if (prev.remainingSeconds <= 1) {
-          const next = advancePhase(prev);
-          triggerAlert(next.status === 'finished' ? [0, 0.18, 0.36, 0.54] : undefined);
-          if (next.status === 'finished') {
-            clearTick();
-          }
-          return next;
+          // stop here and ring: the user decides when the next phase starts
+          return {
+            ...prev,
+            status: 'alarm',
+            remainingSeconds: 0,
+            alarm: { from: prev.currentPhase, to: nextStep(prev) },
+          };
         }
         return { ...prev, remainingSeconds: prev.remainingSeconds - 1 };
       });
     }, 1000);
 
     return clearTick;
-  }, [state.status, advancePhase, clearTick, triggerAlert]);
+  }, [state.status, clearTick, nextStep]);
 
   const start = useCallback(() => {
     if (cycles.length === 0) return;
-    if (state.status === 'idle' || state.status === 'finished') {
-      const focusSec = getPhaseSeconds(cycles, 0, 'focus');
-      setState({
-        status: 'running',
-        currentCycleIndex: 0,
-        currentPhase: 'focus',
-        remainingSeconds: focusSec,
-        phaseTotalSeconds: focusSec,
-      });
-    } else if (state.status === 'paused') {
-      setState((p) => ({ ...p, status: 'running' }));
-    }
-  }, [cycles, state.status]);
+    setState((p) => {
+      if (p.status === 'alarm') return p;
+      if (p.status === 'idle' || p.status === 'finished') {
+        const focusSec = getPhaseSeconds(cycles, 0, 'focus');
+        return {
+          status: 'running',
+          currentCycleIndex: 0,
+          currentPhase: 'focus',
+          remainingSeconds: focusSec,
+          phaseTotalSeconds: focusSec,
+          alarm: null,
+        };
+      }
+      return { ...p, status: 'running' };
+    });
+  }, [cycles]);
 
   const pause = useCallback(() => {
     setState((p) => (p.status === 'running' ? { ...p, status: 'paused' } : p));
@@ -156,20 +147,24 @@ export function useTimer(cycles: CycleConfig[], handlers: TimerHandlers = {}) {
   const skip = useCallback(() => {
     if (state.status !== 'running' && state.status !== 'paused') return;
     const next = advancePhase(state);
-    triggerAlert();
+    setFlash(true);
+    window.setTimeout(() => setFlash(false), 1000);
     setState(next.status === 'finished' ? next : { ...next, status: state.status });
-  }, [state, advancePhase, triggerAlert]);
+  }, [state, advancePhase]);
+
+  /** Stop the alarm and start the phase it announced. */
+  const dismissAlarm = useCallback(() => {
+    setState((p) => {
+      if (p.status !== 'alarm') return p;
+      const next = advancePhase(p);
+      return next.status === 'finished' ? next : { ...next, status: 'running' };
+    });
+  }, [advancePhase]);
 
   const reset = useCallback(() => {
     clearTick();
-    setState({
-      status: 'idle',
-      currentCycleIndex: 0,
-      currentPhase: 'focus',
-      remainingSeconds: 0,
-      phaseTotalSeconds: 0,
-    });
+    setState(IDLE);
   }, [clearTick]);
 
-  return { state, flash, start, pause, toggle, skip, reset };
+  return { state, flash, start, pause, toggle, skip, reset, dismissAlarm };
 }

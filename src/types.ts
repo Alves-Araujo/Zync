@@ -5,7 +5,14 @@ export interface CycleConfig {
 
 export type Phase = 'focus' | 'break';
 
-export type TimerStatus = 'idle' | 'running' | 'paused' | 'finished';
+/** 'alarm' = the phase ended and the alarm is ringing until the user acknowledges it. */
+export type TimerStatus = 'idle' | 'running' | 'paused' | 'finished' | 'alarm';
+
+/** What the ringing alarm is about: the phase that just ended and what comes next. */
+export interface AlarmTransition {
+  from: Phase;
+  to: Phase | 'finished';
+}
 
 export interface TimerState {
   status: TimerStatus;
@@ -14,4 +21,5 @@ export interface TimerState {
   remainingSeconds: number;
   /** Total length of the phase currently displayed, in seconds. */
   phaseTotalSeconds: number;
+  alarm: AlarmTransition | null;
 }

@@ -25,7 +25,9 @@ export function useClockSkin() {
   }, [skin]);
 
   const patch = useCallback((changes: Partial<ClockSkin>) => {
-    setSkin((s) => ({ ...s, ...changes, preset: 'custom' }));
+    // the shape is independent of the style, so changing it keeps the active preset
+    const keepsPreset = Object.keys(changes).every((k) => k === 'shape');
+    setSkin((s) => ({ ...s, ...changes, preset: keepsPreset ? s.preset : 'custom' }));
   }, []);
 
   const applyPreset = useCallback((id: string) => {
@@ -34,7 +36,8 @@ export function useClockSkin() {
       const { id: _id, name: _name, ...skinFields } = p;
       void _id;
       void _name;
-      setSkin({ ...skinFields });
+      // a style restyles the current timepiece — it never swaps its shape
+      setSkin((s) => ({ ...skinFields, shape: s.shape }));
     }
   }, []);
 

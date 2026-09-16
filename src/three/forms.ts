@@ -1,5 +1,3 @@
-import type { TimepieceShape } from '../clock/skins';
-
 /**
  * Scalar "knobs" the 3D timepiece reads. Each shape is a preset of knobs; the
  * intro walks a continuous value `f` in [0,3] and we interpolate between the
@@ -39,13 +37,13 @@ const POCKET: Knobs = {
   bezelFace: 0.12,
   fluted: 0.15,
   metal: 0.08,
-  roughness: 0.12,
+  roughness: 0.2,
   dialWatch: 1,
   markerBold: 0.15,
   handScale: 1,
   handWidth: 0.85,
   handLume: 0.15,
-  crownScale: 0.9,
+  crownScale: 0, // the pocket crown is part of the pendant (bow group)
   crownAngleDeg: 90,
   bowScale: 1,
   lugScale: 0,
@@ -66,7 +64,7 @@ const WRIST: Knobs = {
   bezelFace: 0.1,
   fluted: 0.06,
   metal: 1,
-  roughness: 0.22,
+  roughness: 0.3,
   dialWatch: 1,
   markerBold: 0.5,
   handScale: 1,
@@ -93,7 +91,7 @@ const WALL: Knobs = {
   bezelFace: 0.18,
   fluted: 1,
   metal: 1,
-  roughness: 0.18,
+  roughness: 0.26,
   dialWatch: 1,
   markerBold: 1,
   handScale: 1.05,
@@ -142,8 +140,6 @@ const HOURGLASS: Knobs = {
 
 const PRESETS: Knobs[] = [POCKET, WRIST, WALL, HOURGLASS];
 
-export const SHAPE_ORDER: TimepieceShape[] = ['pocket', 'wrist', 'wall', 'hourglass'];
-
 const smoother = (t: number) => t * t * t * (t * (t * 6 - 15) + 10);
 const lerp = (a: number, b: number, t: number) => a + (b - a) * t;
 
@@ -160,23 +156,4 @@ export function sampleKnobs(f: number): Knobs {
     out[k] = lerp(a[k], b[k], t);
   }
   return out;
-}
-
-/**
- * Maps intro scroll progress (0..1) to the morph position. The intro only walks
- * pocket → wrist → wall (0 → 2); the hourglass is editor-only. The wall form is
- * held from ~0.78 to 1 so it has screen time before the overlay dissolves.
- */
-export function progressToF(p: number): number {
-  const windows: [number, number][] = [
-    [0.16, 0.42], // pocket -> wrist
-    [0.5, 0.78], // wrist -> wall
-  ];
-  let f = 0;
-  for (let i = 0; i < windows.length; i++) {
-    const [s, e] = windows[i];
-    if (p >= e) f = i + 1;
-    else if (p > s) return i + smoother((p - s) / (e - s));
-  }
-  return f;
 }

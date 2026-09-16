@@ -2,11 +2,13 @@ import type { TimerStatus } from '../types';
 
 interface Props {
   status: TimerStatus;
-  hasCycles: boolean;
+  canStart: boolean;
   onStart: () => void;
   onPause: () => void;
-  onSkip: () => void;
+  /** Omitted outside the pomodoro, where there is no next phase to skip to. */
+  onSkip?: () => void;
   onReset: () => void;
+  resetLabel?: string;
 }
 
 const Icon = {
@@ -35,11 +37,12 @@ const Icon = {
 
 export default function Controls({
   status,
-  hasCycles,
+  canStart,
   onStart,
   onPause,
   onSkip,
   onReset,
+  resetLabel = 'Reiniciar',
 }: Props) {
   const running = status === 'running';
   const midSession = status === 'running' || status === 'paused';
@@ -56,24 +59,22 @@ export default function Controls({
       <button
         className="btn btn-primary btn-lg"
         onClick={running ? onPause : onStart}
-        disabled={!hasCycles}
+        disabled={!canStart || status === 'alarm'}
       >
         {running ? Icon.pause : Icon.play}
         {primaryLabel}
       </button>
 
-      <button className="btn btn-ghost" onClick={onSkip} disabled={!midSession}>
-        {Icon.skip}
-        Pular
-      </button>
+      {onSkip && (
+        <button className="btn btn-ghost" onClick={onSkip} disabled={!midSession}>
+          {Icon.skip}
+          Pular
+        </button>
+      )}
 
-      <button
-        className="btn btn-ghost btn-danger"
-        onClick={onReset}
-        disabled={status === 'idle'}
-      >
+      <button className="btn btn-ghost btn-danger" onClick={onReset} disabled={status === 'idle'}>
         {Icon.reset}
-        Reiniciar
+        {resetLabel}
       </button>
     </div>
   );

@@ -69,6 +69,39 @@ function drawBase(ctx: CanvasRenderingContext2D, c: DialColors) {
   ctx.restore();
 }
 
+/** Engine-turned "guilloché" texture: concentric wavy rings, like a real dial. */
+function guillocheRing(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  rOuter: number,
+  rInner: number,
+  color: string,
+  waves = 44,
+  amp = 2.5,
+  alpha = 0.3,
+) {
+  ctx.save();
+  ctx.globalAlpha = alpha;
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  const rings = 7;
+  for (let ring = 0; ring < rings; ring++) {
+    const r = rInner + ((rOuter - rInner) * ring) / (rings - 1);
+    ctx.beginPath();
+    for (let i = 0; i <= 360; i += 2) {
+      const a = (i / 360) * Math.PI * 2;
+      const rr = r + Math.sin(a * waves) * amp;
+      const x = cx + Math.cos(a) * rr;
+      const y = cy + Math.sin(a) * rr;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function wordmark(ctx: CanvasRenderingContext2D, c: DialColors, sub: string) {
   ctx.fillStyle = c.ink;
   ctx.textAlign = 'center';
@@ -115,108 +148,207 @@ function drawPocket(ctx: CanvasRenderingContext2D, c: DialColors) {
     ctx.fillText(rn, cx + Math.cos(a) * SIZE * 0.36, cy + Math.sin(a) * SIZE * 0.36);
   });
 
+  // engine-turned guilloché medallion filling the centre
+  guillocheRing(ctx, cx, cy, SIZE * 0.33, SIZE * 0.15, c.ink, 42, 2.6, 0.28);
+
   // running-seconds sub-dial at 6
   const sx = cx;
   const sy = cy + SIZE * 0.2;
   ring(ctx, sx, sy, SIZE * 0.09, 3, c.inkDim);
   ctx.fillStyle = c.inkDim;
   ctx.font = '600 18px "Inter", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2;
     tickMark(ctx, sx, sy, a, SIZE * 0.088, SIZE * 0.072, 2, c.inkDim);
+    if (i % 3 === 0) {
+      const n = (i / 12) * 60;
+      const tx = sx + Math.cos(a) * SIZE * 0.062;
+      const ty = sy + Math.sin(a) * SIZE * 0.062;
+      ctx.font = '600 13px "Inter", sans-serif';
+      ctx.fillText(String(n), tx, ty);
+    }
   }
   wordmark(ctx, c, 'POCKET · 1901');
 }
 
-function drawWrist(ctx: CanvasRenderingContext2D, c: DialColors) {
+function drawWrist(ctx: CanvasRenderingContext2D, c: DialColors, day: number) {
   const cx = SIZE / 2;
   const cy = SIZE / 2;
-  ring(ctx, cx, cy, SIZE * 0.46, 4, c.inkDim);
+  // the minute track + hour indices are real 3D parts; print only a fine outer rail
+  ring(ctx, cx, cy, SIZE * 0.475, 2, c.inkDim);
+  ring(ctx, cx, cy, SIZE * 0.325, 1.5, c.inkDim);
 
-  for (let i = 0; i < 60; i++) {
-    const a = (i / 60) * Math.PI * 2;
-    const major = i % 5 === 0;
-    tickMark(ctx, cx, cy, a, SIZE * 0.44, major ? SIZE * 0.4 : SIZE * 0.42, major ? 6 : 2, c.ink);
-  }
-
+  // numerals sit on an inner ring, clear of the applied indices (which live at ~0.38)
   ctx.fillStyle = c.ink;
-  ctx.font = '600 58px "Space Grotesk", "Inter", sans-serif';
+  ctx.font = '600 46px "Space Grotesk", "Inter", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (let n = 1; n <= 12; n++) {
+    if (n === 3) continue; // date window lives here
     const a = (n / 12) * Math.PI * 2 - Math.PI / 2;
-    ctx.fillText(String(n), cx + Math.cos(a) * SIZE * 0.385, cy + Math.sin(a) * SIZE * 0.385);
+    ctx.fillText(String(n), cx + Math.cos(a) * SIZE * 0.27, cy + Math.sin(a) * SIZE * 0.27);
   }
 
+  // engine-turned guilloché medallion in the centre
+  guillocheRing(ctx, cx, cy, SIZE * 0.2, SIZE * 0.07, c.ink, 36, 2.2, 0.22);
+
   // date window at 3
+  const dx = cx + SIZE * 0.27;
+  ctx.fillStyle = '#f3f1ea';
+  ctx.fillRect(dx - 28, cy - 24, 56, 48);
   ctx.strokeStyle = c.accent;
   ctx.lineWidth = 3;
-  ctx.strokeRect(cx + SIZE * 0.27, cy - 26, 58, 52);
-  ctx.fillStyle = c.ink;
+  ctx.strokeRect(dx - 28, cy - 24, 56, 48);
+  ctx.fillStyle = '#1a1a1f';
   ctx.font = '600 30px "Space Grotesk", sans-serif';
-  ctx.fillText('25', cx + SIZE * 0.27 + 29, cy);
+  ctx.fillText(String(day), dx, cy + 1);
 
   wordmark(ctx, c, 'AUTOMATIC · FOCO');
+  ctx.fillStyle = c.inkDim;
+  ctx.font = '500 15px "Inter", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('WATER RESIST. 50M', cx, cy + SIZE * 0.13);
 }
 
 function drawWall(ctx: CanvasRenderingContext2D, c: DialColors) {
   const cx = SIZE / 2;
   const cy = SIZE / 2;
+  // the dive scale is on the ceramic bezel insert and the indices are 3D — keep the dial clean
+  ring(ctx, cx, cy, SIZE * 0.475, 2, c.inkDim);
+  ring(ctx, cx, cy, SIZE * 0.31, 1.5, c.inkDim);
 
-  // dive-style outer bezel numbers
-  ctx.fillStyle = c.ink;
-  ctx.font = '700 40px "Space Grotesk", "Inter", sans-serif';
+  // small 24h railroad on an inner ring, clear of the applied indices
+  ctx.fillStyle = c.inkDim;
+  ctx.font = '600 20px "Space Grotesk", "Inter", sans-serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (let i = 0; i < 12; i++) {
     const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
-    if (i % 2 === 0 && i !== 0) {
-      ctx.fillText(String(i * 5), cx + Math.cos(a) * SIZE * 0.44, cy + Math.sin(a) * SIZE * 0.44);
-    } else {
-      ctx.beginPath();
-      ctx.arc(cx + Math.cos(a) * SIZE * 0.44, cy + Math.sin(a) * SIZE * 0.44, i === 0 ? 12 : 8, 0, Math.PI * 2);
-      ctx.fillStyle = i === 0 ? c.accent : c.ink;
-      ctx.fill();
-      ctx.fillStyle = c.ink;
-    }
+    ctx.fillText(String(i === 0 ? 24 : i + 12), cx + Math.cos(a) * SIZE * 0.275, cy + Math.sin(a) * SIZE * 0.275);
   }
-  ring(ctx, cx, cy, SIZE * 0.38, 3, c.inkDim);
+  for (let i = 0; i < 48; i++) {
+    if (i % 4 === 0) continue;
+    const a = (i / 48) * Math.PI * 2;
+    tickMark(ctx, cx, cy, a, SIZE * 0.305, SIZE * 0.292, 2, c.inkDim);
+  }
 
-  // chunky applied indices with lume
-  for (let i = 0; i < 12; i++) {
-    const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
-    ctx.save();
-    ctx.translate(cx + Math.cos(a) * SIZE * 0.32, cy + Math.sin(a) * SIZE * 0.32);
-    ctx.rotate(a + Math.PI / 2);
-    ctx.fillStyle = '#e9f4ef';
-    if (i === 0) {
-      ctx.fillRect(-30, -22, 60, 26);
-    } else if (i % 3 === 0) {
-      ctx.fillRect(-16, -34, 32, 34);
-    } else {
-      ctx.beginPath();
-      ctx.arc(0, 0, 15, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    ctx.restore();
-  }
+  // faint engine-turning in the centre
+  guillocheRing(ctx, cx, cy, SIZE * 0.22, SIZE * 0.08, c.ink, 48, 2, 0.14);
 
   wordmark(ctx, c, 'FOCUS · CHRONOMETER');
+  ctx.fillStyle = c.inkDim;
+  ctx.font = '600 15px "Inter", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('300M / 990FT', cx, cy + SIZE * 0.13);
 }
 
-const DRAWERS: Record<Exclude<TimepieceShape, 'hourglass'>, (ctx: CanvasRenderingContext2D, c: DialColors) => void> = {
+const DRAWERS: Record<
+  Exclude<TimepieceShape, 'hourglass'>,
+  (ctx: CanvasRenderingContext2D, c: DialColors, day: number) => void
+> = {
   pocket: drawPocket,
   wrist: drawWrist,
   wall: drawWall,
 };
 
-export function makeDialTexture(shape: TimepieceShape, colors: DialColors): THREE.CanvasTexture {
+/**
+ * Ceramic dive-bezel insert, mapped onto a RingGeometry (planar UVs: the canvas
+ * edge is the ring's outer radius). Engraved 60-minute scale with a lumed pip.
+ */
+export function makeBezelInsertTexture(accent: string): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = SIZE;
+  canvas.height = SIZE;
+  const ctx = canvas.getContext('2d')!;
+  const cx = SIZE / 2;
+  const cy = SIZE / 2;
+  const rOut = SIZE / 2;
+  const rIn = rOut * 0.849;
+  const mid = (rOut + rIn) / 2;
+
+  const g = ctx.createRadialGradient(cx * 0.8, cy * 0.7, 20, cx, cy, rOut);
+  g.addColorStop(0, '#26262c');
+  g.addColorStop(1, '#101014');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, SIZE, SIZE);
+
+  // polished ceramic sheen: faint concentric lines
+  ctx.save();
+  ctx.globalAlpha = 0.08;
+  for (let r = rIn; r < rOut; r += 3) ring(ctx, cx, cy, r, 1, '#ffffff');
+  ctx.restore();
+
+  const engraved = '#d9dde4';
+  for (let m = 0; m < 60; m++) {
+    const a = (m / 60) * Math.PI * 2 - Math.PI / 2;
+    if (m === 0) continue;
+    if (m % 10 === 0) continue;
+    const major = m % 5 === 0;
+    const fine = m < 15;
+    if (!major && !fine) {
+      ctx.beginPath();
+      ctx.arc(cx + Math.cos(a) * mid, cy + Math.sin(a) * mid, 3, 0, Math.PI * 2);
+      ctx.fillStyle = engraved;
+      ctx.globalAlpha = 0.5;
+      ctx.fill();
+      ctx.globalAlpha = 1;
+      continue;
+    }
+    tickMark(ctx, cx, cy, a, rOut - 8, major ? rIn + 12 : rIn + 30, major ? 7 : 3, engraved);
+  }
+
+  ctx.fillStyle = engraved;
+  ctx.font = '700 44px "Space Grotesk", "Inter", sans-serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let m = 10; m < 60; m += 10) {
+    const a = (m / 60) * Math.PI * 2 - Math.PI / 2;
+    ctx.save();
+    ctx.translate(cx + Math.cos(a) * mid, cy + Math.sin(a) * mid);
+    let rot = a + Math.PI / 2;
+    if (m > 15 && m < 45) rot += Math.PI; // keep the bottom numbers upright
+    ctx.rotate(rot);
+    ctx.fillText(String(m), 0, 2);
+    ctx.restore();
+  }
+
+  // lumed triangle at 12 with a metal surround
+  ctx.save();
+  ctx.translate(cx, cy - mid);
+  ctx.beginPath();
+  ctx.moveTo(-24, -20);
+  ctx.lineTo(24, -20);
+  ctx.lineTo(0, 22);
+  ctx.closePath();
+  ctx.fillStyle = '#e9eef0';
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(0, -4, 7, 0, Math.PI * 2);
+  ctx.fillStyle = accent;
+  ctx.fill();
+  ctx.restore();
+
+  const t = new THREE.CanvasTexture(canvas);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+
+/** `day` is the day of the month shown in the wrist dial's date window. */
+export function makeDialTexture(
+  shape: TimepieceShape,
+  colors: DialColors,
+  day = new Date().getDate(),
+): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = SIZE;
   canvas.height = SIZE;
   const ctx = canvas.getContext('2d')!;
   drawBase(ctx, colors);
-  if (shape !== 'hourglass') DRAWERS[shape](ctx, colors);
+  if (shape !== 'hourglass') DRAWERS[shape](ctx, colors, day);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;

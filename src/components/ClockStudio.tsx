@@ -1,39 +1,30 @@
 import type { ClockSkin } from '../clock/skins';
 import { ACCENT_SWATCHES, SHAPE_OPTIONS, SKIN_PRESETS } from '../clock/skins';
+import { VISUAL_OPTIONS, type VisualPrefs } from '../hooks/useVisualPrefs';
 import SegmentedControl from './SegmentedControl';
+import Toggle from './Toggle';
 
 interface Props {
   skin: ClockSkin;
   onPatch: (changes: Partial<ClockSkin>) => void;
   onPreset: (id: string) => void;
+  /** The active sound's theme is currently overriding the accent colour. */
+  accentLocked?: boolean;
+  visuals: VisualPrefs;
+  onVisual: (key: keyof VisualPrefs, value: boolean) => void;
+  onAllVisuals: (value: boolean) => void;
 }
 
-function Toggle({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      className={`toggle${checked ? ' is-on' : ''}`}
-      onClick={() => onChange(!checked)}
-    >
-      <span className="toggle-track">
-        <span className="toggle-thumb" />
-      </span>
-      {label}
-    </button>
-  );
-}
-
-export default function ClockStudio({ skin, onPatch, onPreset }: Props) {
+export default function ClockStudio({
+  skin,
+  onPatch,
+  onPreset,
+  accentLocked = false,
+  visuals,
+  onVisual,
+  onAllVisuals,
+}: Props) {
+  const allOff = VISUAL_OPTIONS.every((o) => !visuals[o.key]);
   return (
     <aside className="panel studio">
       <header className="panel-head">
@@ -87,14 +78,29 @@ export default function ClockStudio({ skin, onPatch, onPreset }: Props) {
             />
           </label>
         </div>
+        {accentLocked && (
+          <p className="accent-note">O tema do som está colorindo o site. Desative em Sons de fundo para usar sua cor.</p>
+        )}
       </div>
 
-      <div className="field toggles">
-        <Toggle
-          label="Partículas no fundo"
-          checked={skin.particles}
-          onChange={(v) => onPatch({ particles: v })}
-        />
+      <div className="field">
+        <span className="field-label sound-slider-label">
+          Animações
+          <button type="button" className="link-btn" onClick={() => onAllVisuals(allOff)}>
+            {allOff ? 'Ligar todas' : 'Desligar todas'}
+          </button>
+        </span>
+        <p className="field-hint">Desligue o que quiser se o computador estiver pesado.</p>
+        <div className="toggles">
+          {VISUAL_OPTIONS.map((o) => (
+            <Toggle
+              key={o.key}
+              label={o.label}
+              checked={visuals[o.key]}
+              onChange={(v) => onVisual(o.key, v)}
+            />
+          ))}
+        </div>
       </div>
     </aside>
   );

@@ -15,7 +15,6 @@ export interface ClockSkin {
   strap: StrapStyle;
   numerals: boolean;
   glass: boolean;
-  particles: boolean;
   /** 3D depth multiplier, 0.5–1.6. */
   depth: number;
 }
@@ -54,7 +53,6 @@ export const SKIN_PRESETS: SkinPreset[] = [
     strap: 'steel',
     numerals: false,
     glass: true,
-    particles: true,
     depth: 1,
   },
   {
@@ -70,7 +68,6 @@ export const SKIN_PRESETS: SkinPreset[] = [
     strap: 'leather',
     numerals: true,
     glass: true,
-    particles: false,
     depth: 0.85,
   },
   {
@@ -86,7 +83,6 @@ export const SKIN_PRESETS: SkinPreset[] = [
     strap: 'none',
     numerals: true,
     glass: false,
-    particles: true,
     depth: 1.2,
   },
   {
@@ -102,7 +98,6 @@ export const SKIN_PRESETS: SkinPreset[] = [
     strap: 'steel',
     numerals: false,
     glass: true,
-    particles: false,
     depth: 1.15,
   },
   {
@@ -118,7 +113,6 @@ export const SKIN_PRESETS: SkinPreset[] = [
     strap: 'sport',
     numerals: false,
     glass: true,
-    particles: true,
     depth: 1,
   },
 ];
