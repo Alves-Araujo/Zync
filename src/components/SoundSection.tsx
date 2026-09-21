@@ -309,7 +309,7 @@ export default function SoundSection({
             </button>
           </div>
 
-        <div className="sound-controls">
+        <div className={`sound-controls${special === 'binaural' ? ' sound-controls--binaural' : ''}`}>
           <Slider
             label={isNoise ? 'Volume do ruído' : 'Volume da natureza'}
             value={isNoise ? settings.noiseVolume : settings.natureVolume}
